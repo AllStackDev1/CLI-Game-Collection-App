@@ -2,7 +2,6 @@ import getpass
 from rich.console import Console
 from rich.panel import Panel
 from prompt_toolkit import prompt
-from prompt_toolkit.contrib.completers import WordCompleter
 
 from models.user import User, ValidationError
 from repositories.user import UserRepository
@@ -108,26 +107,113 @@ def login_user():
     return user
 
 
-def display_user_profile(user=None):
-    """Display user profile information."""
-    # Get current user if none provided
-    if user is None:
-        user = Session.get_current_user()
-        if not user:
-            print("No user is logged in")
-            return
+def update_user_details(user_data):
+    """
+    Update the current user's profile information
+    
+    Args:
+        user_data (dict): The user data to update (name, email, password)
+    
+    Returns:
+        tuple: (success, message)
+            success (bool): True if update succeeds, False otherwise
+            message (str): Success/error message
+    """
+    # Get the current user
+    current_user = Session.get_current_user()
+    if not current_user:
+        return False, "No active user session found"
+    
+    # Create a clean dictionary with only valid fields
+    update_data = {}
+    
+    # Validate name (if provided)
+    if 'name' in user_data and user_data['name']:
+        name = user_data['name'].strip()
+        if len(name) < 2:
+            return False, "Name must be at least 2 characters long"
+        update_data['name'] = name
+    
+    # Validate email (if provided)
+    if 'email' in user_data and user_data['email']:
+        email = user_data['email'].strip()
+        # Basic email validation
+        if '@' not in email or '.' not in email or len(email) < 5:
+            return False, "Please enter a valid email address"
+        # Check if email is already in use by another user
+        existing_user = UserRepository.find_by_email(email)
+        if existing_user and existing_user['id'] != current_user['id']:
+            return False, "Email address is already in use by another account"
+        update_data['email'] = email
+    
+    # Handle password update (if provided)
+    if 'password' in user_data and user_data['password']:
+        password = user_data['password']
+        # Password strength validation
+        if len(password) < 8:
+            return False, "Password must be at least 8 characters long"
+        
+        # If confirmation password provided, check it matches
+        if 'confirm_password' in user_data:
+            if password != user_data['confirm_password']:
+                return False, "Passwords do not match"
+        
+        # Hash the password before storing it
+        hashed_password = PasswordHandler.hash_password(password)
+        update_data['password'] = hashed_password
+    
+    # If there's nothing to update, return early
+    if not update_data:
+        return False, "No changes were made to your profile"
+    
+    # Call the repository to update the user
+    success, message, updated_user = UserRepository.update(current_user['id'], update_data)
+    
+    # If update was successful, update the session
+    if success and updated_user:
+        # Update the session with new user details (excluding sensitive data)
+        sensitive_fields = ['password']
+        session_user = {k: v for k, v in updated_user.items() if k not in sensitive_fields}
+        Session.set_current_user(session_user)
+        
+        return True, "Your profile has been updated successfully"
+    
+    # Return the result from the repository
+    return success, message
 
-    print("\n=== User Profile ===")
-    print(f"ID: {user.id}")
-    print(f"Name: {user.name}")
-    print(f"Email: {user.email}")
-    print(f"Account Created: {user.created_at}")
 
-    # update functionality
-    # delete account 
-    # forgot password
-
-    input("\nPress Enter to continue...")
+def delete_current_user_account(confirm_password=None):
+    """
+    Delete the current user's account after confirmation
+    
+    Args:
+        confirm_password (str, optional): Password confirmation for account deletion
+        
+    Returns:
+        tuple: (success, message)
+            success (bool): True if deletion succeeds, False otherwise
+            message (str): Success/error message
+    """
+    # Get the current user
+    current_user = Session.get_current_user()
+    if not current_user:
+        return False, "No active user session found"
+    
+    # If password confirmation is required and provided
+    if confirm_password is not None:
+        # Verify the password matches before proceeding
+        is_valid = PasswordHandler.verify_password(confirm_password, current_user.get('password', ''))
+        if not is_valid:
+            return False, "Incorrect password. Account deletion cancelled."
+    
+    # Delete the user account
+    success, message = UserRepository.delete(current_user['id'])
+    
+    # If deletion was successful, invalidate the session
+    if success:
+        Session.clear()
+    
+    return success, message
 
 
 def logout_user():

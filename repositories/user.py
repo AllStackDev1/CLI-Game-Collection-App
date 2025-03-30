@@ -22,7 +22,8 @@ class UserRepository:
         except sqlite3.IntegrityError:
             return False
 
-    def find_by_id(self, user_id):
+    @staticmethod
+    def find_by_id(user_id):
         """
         Find a user by ID
         
@@ -33,7 +34,7 @@ class UserRepository:
             dict: User data if found, None otherwise
         """
         try:
-            cursor = self.db.execute(
+            cursor = Database.execute(
                 "SELECT id, name, email, created_at FROM users WHERE id = ?", 
                 (user_id,)
             )
@@ -42,7 +43,8 @@ class UserRepository:
         except Exception as e:
             return None
 
-    def update(self, user_id, data):
+    @staticmethod
+    def update(user_id, data):
         """
         Update an existing user record in the database
         
@@ -62,7 +64,7 @@ class UserRepository:
                 return False, "No data provided for update", None
             
             # Check if the user exists
-            existing_user = self.find_by_id(user_id)
+            existing_user = UserRepository.find_by_id(user_id)
             if not existing_user:
                 return False, f"User with ID {user_id} not found", None
                 
@@ -85,22 +87,23 @@ class UserRepository:
             sql = f"UPDATE users SET {', '.join(update_parts)} WHERE id = ?"
             params.append(user_id)
             
-            cursor = self.db.execute(sql, tuple(params))
-            self.db.commit()
+            cursor = Database.execute(sql, tuple(params))
+            Database.commit()
             
             # Check if update was successful
             if cursor.rowcount == 0:
                 return False, "No changes made", None
                 
             # Get the updated user data
-            updated_user = self.find_by_id(user_id)
+            updated_user = UserRepository.find_by_id(user_id)
             return True, "User updated successfully", updated_user
             
         except Exception as e:
-            self.db.rollback()
+            Database.rollback()
             return False, f"Database error: {str(e)}", None
 
-    def delete(self, user_id):
+    @staticmethod
+    def delete(user_id):
         """
         Delete a user record from the database
         
@@ -114,13 +117,13 @@ class UserRepository:
         """
         try:
             # Check if user exists before attempting deletion
-            existing_user = self.find_by_id(user_id)
+            existing_user = UserRepository.find_by_id(user_id)
             if not existing_user:
                 return False, f"User with ID {user_id} not found"
             
             # Execute the deletion
-            cursor = self.db.execute("DELETE FROM users WHERE id = ?", (user_id,))
-            self.db.commit()
+            cursor = Database.execute("DELETE FROM users WHERE id = ?", (user_id,))
+            Database.commit()
             
             # Check if delete was successful
             if cursor.rowcount == 0:
@@ -129,7 +132,7 @@ class UserRepository:
             return True, "User deleted successfully"
             
         except Exception as e:
-            self.db.rollback()
+            Database.rollback()
             return False, f"Database error during deletion: {str(e)}"
 
     @staticmethod

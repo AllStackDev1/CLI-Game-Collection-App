@@ -1,7 +1,7 @@
 from db.connection import Database
 from db.migration import MigrationManager
 from auth.session import Session
-from app.menu import display_welcome, show_auth_menu, show_main_menu
+from app.menu import show_auth_menu, show_main_menu
 
 
 def main():
@@ -10,9 +10,6 @@ def main():
     Database.initialize()
     print("Initializing database...")
     MigrationManager.migrate()
-
-    # Show welcome message
-    display_welcome()
 
     # Authentication loop
     while True:
