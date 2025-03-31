@@ -1,11 +1,18 @@
+from models.user import User
+
 class Session:
     """Manages user sessions."""
 
-    _current_user = None
+    _current_user: User = None
 
     @classmethod
-    def login(cls, user):
+    def login(cls, user: User):
         """Set the current logged-in user."""
+        cls._current_user = user
+
+    @classmethod
+    def update_current_user(cls, user: User):
+        """Update the current logged-in user."""
         cls._current_user = user
 
     @classmethod

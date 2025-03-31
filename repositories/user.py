@@ -33,15 +33,23 @@ class UserRepository:
         Returns:
             dict: User data if found, None otherwise
         """
-        try:
-            cursor = Database.execute(
-                "SELECT id, name, email, created_at FROM users WHERE id = ?", 
-                (user_id,)
-            )
-            user = cursor.fetchone()
-            return dict(user) if user else None
-        except Exception as e:
-            return None
+        with Database.execute(
+            "SELECT id, name, email, created_at FROM users WHERE id = ?", 
+            (user_id,)
+        ) as cursor:
+            user_data = cursor.fetchone()
+
+            if user_data:
+                # Convert tuple to User object
+                return User(
+                    id=user_data[0],
+                    name=user_data[1],
+                    email=user_data[2],
+                    password=None,
+                    created_at=user_data[3],
+                    password_is_hashed=True
+                )
+        return None
 
     @staticmethod
     def update(user_id, data):
@@ -65,6 +73,7 @@ class UserRepository:
             
             # Check if the user exists
             existing_user = UserRepository.find_by_id(user_id)
+            print(existing_user)
             if not existing_user:
                 return False, f"User with ID {user_id} not found", None
                 
@@ -87,19 +96,16 @@ class UserRepository:
             sql = f"UPDATE users SET {', '.join(update_parts)} WHERE id = ?"
             params.append(user_id)
             
-            cursor = Database.execute(sql, tuple(params))
-            Database.commit()
-            
-            # Check if update was successful
-            if cursor.rowcount == 0:
-                return False, "No changes made", None
+            with Database.execute(sql, tuple(params)) as cursor:
+                # Check if update was successful
+                if cursor.rowcount == 0:
+                    return False, "No changes made", None
                 
-            # Get the updated user data
-            updated_user = UserRepository.find_by_id(user_id)
-            return True, "User updated successfully", updated_user
+                # Get the updated user data
+                updated_user = UserRepository.find_by_id(user_id)
+                return True, "User updated successfully", updated_user
             
         except Exception as e:
-            Database.rollback()
             return False, f"Database error: {str(e)}", None
 
     @staticmethod
@@ -122,17 +128,15 @@ class UserRepository:
                 return False, f"User with ID {user_id} not found"
             
             # Execute the deletion
-            cursor = Database.execute("DELETE FROM users WHERE id = ?", (user_id,))
-            Database.commit()
+            with Database.execute("DELETE FROM users WHERE id = ?", (user_id,)) as cursor:
             
-            # Check if delete was successful
-            if cursor.rowcount == 0:
-                return False, "No user was deleted"
-                
-            return True, "User deleted successfully"
+                # Check if delete was successful
+                if cursor.rowcount == 0:
+                    return False, "No user was deleted"
+                    
+                return True, "User deleted successfully"
             
         except Exception as e:
-            Database.rollback()
             return False, f"Database error during deletion: {str(e)}"
 
     @staticmethod
@@ -151,7 +155,8 @@ class UserRepository:
                     name=user_data[1],
                     email=user_data[2],
                     password=user_data[3],
-                    created_at=user_data[4]
+                    created_at=user_data[4],
+                    password_is_hashed=True
                 )
         return None
 

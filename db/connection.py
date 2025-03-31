@@ -12,7 +12,7 @@ class Database:
     @classmethod
     def initialize(cls, db_name="archive.db"):
         """Initialize the database path."""
-        data_dir = Path("data")
+        data_dir = Path("db/data")
         data_dir.mkdir(exist_ok=True)
         cls._db_path = data_dir / db_name
 

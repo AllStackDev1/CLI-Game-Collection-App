@@ -49,7 +49,7 @@ def register_user():
                         print("Error: Passwords don't match.")
                         continue
 
-                    user.password = password  # This will validate
+                    user.password = password
                     valid_password = True
                 except ValidationError as e:
                     print(f"Invalid password: {str(e)}")
@@ -107,7 +107,7 @@ def login_user():
     return user
 
 
-def update_user_details(user_data):
+def update_user_details(id, user_data):
     """
     Update the current user's profile information
     
@@ -119,11 +119,6 @@ def update_user_details(user_data):
             success (bool): True if update succeeds, False otherwise
             message (str): Success/error message
     """
-    # Get the current user
-    current_user = Session.get_current_user()
-    if not current_user:
-        return False, "No active user session found"
-    
     # Create a clean dictionary with only valid fields
     update_data = {}
     
@@ -141,8 +136,8 @@ def update_user_details(user_data):
         if '@' not in email or '.' not in email or len(email) < 5:
             return False, "Please enter a valid email address"
         # Check if email is already in use by another user
-        existing_user = UserRepository.find_by_email(email)
-        if existing_user and existing_user['id'] != current_user['id']:
+        existing_user = UserRepository.find_by_email(email).to_dict()
+        if existing_user and existing_user['id'] != id:
             return False, "Email address is already in use by another account"
         update_data['email'] = email
     
@@ -167,14 +162,14 @@ def update_user_details(user_data):
         return False, "No changes were made to your profile"
     
     # Call the repository to update the user
-    success, message, updated_user = UserRepository.update(current_user['id'], update_data)
+    success, message, updated_user = UserRepository.update(id, update_data)
     
     # If update was successful, update the session
     if success and updated_user:
         # Update the session with new user details (excluding sensitive data)
         sensitive_fields = ['password']
-        session_user = {k: v for k, v in updated_user.items() if k not in sensitive_fields}
-        Session.set_current_user(session_user)
+        session_user = {k: v for k, v in updated_user.to_dict() if k not in sensitive_fields}
+        Session.update_current_user(session_user)
         
         return True, "Your profile has been updated successfully"
     

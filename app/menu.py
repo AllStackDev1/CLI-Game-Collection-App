@@ -3,7 +3,6 @@ from controllers import user as user_controller
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich.text import Text
 from prompt_toolkit import prompt
 from prompt_toolkit.contrib.completers import WordCompleter
 
@@ -83,16 +82,19 @@ def show_auth_menu():
         return None
 
 
-def display_user_profile(user=None):
+def display_user_profile(user):
     """
     Display detailed user profile information and allow returning to main menu.
+    
+    Args:
+        user (dict[str, Any]|None): user dict
     
     Returns:
         bool: Always returns True to continue the session
     """
     console = Console()
     console.clear()
-    
+
     # Create a detailed profile panel
     profile_items = [
         ("Username", user.get('username', 'N/A')),
@@ -126,7 +128,6 @@ def display_user_profile(user=None):
         padding=(1, 2)
     ))
     
-    console.print(Panel("1. Return to Main Menu", title="Options", border_style="blue"))
     console.print("\nPress Enter to return to the main menu...")
     
     # Simple input - just waiting for user to acknowledge
@@ -134,11 +135,11 @@ def display_user_profile(user=None):
     return True
 
 
-def show_edit_profile_screen(current_user):
+def show_edit_profile_screen(user):
     """
     Display the user profile editing interface
     Args:
-        current_user (User): user object
+        user (User): user object
     
     Returns:
         bool: True to keep session active, False otherwise
@@ -150,14 +151,14 @@ def show_edit_profile_screen(current_user):
     
     # Display current information
     console.print("\n[cyan]Current Profile Information:[/cyan]")
-    console.print(f"Name: {current_user.get('name', 'Not set')}")
-    console.print(f"Email: {current_user.get('email', 'Not set')}")
+    console.print(f"Name: {user.get('name', 'Not set')}")
+    console.print(f"Email: {user.get('email', 'Not set')}")
     
     # Collect new information
     console.print("\n[yellow]Enter new information (leave blank to keep current value):[/yellow]")
     
-    new_name = prompt(f"Name [{current_user.get('name', '')}]: ") or current_user.get('name', '')
-    new_email = prompt(f"Email [{current_user.get('email', '')}]: ") or current_user.get('email', '')
+    new_name = prompt(f"Name [{user.get('name', '')}]: ") or user.get('name', '')
+    new_email = prompt(f"Email [{user.get('email', '')}]: ") or user.get('email', '')
     
     # Password is special - never display the current one
     console.print("\n[yellow]Change Password (leave blank to keep current):[/yellow]")
@@ -170,8 +171,8 @@ def show_edit_profile_screen(current_user):
     
     # Confirm changes
     console.print("\n[yellow]Review your changes:[/yellow]")
-    console.print(f"Name: {current_user.get('name', '')} -> {new_name}")
-    console.print(f"Email: {current_user.get('email', '')} -> {new_email}")
+    console.print(f"Name: {user.get('name', '')} -> {new_name}")
+    console.print(f"Email: {user.get('email', '')} -> {new_email}")
     console.print(f"Password: {'*****' if new_password else 'Unchanged'}")
     
     # Ask for confirmation
@@ -192,7 +193,7 @@ def show_edit_profile_screen(current_user):
         update_data['confirm_password'] = confirm_password
     
     # Call controller to update user
-    success, message = user_controller.update_user_details(update_data)
+    success, message = user_controller.update_user_details(user['id'], update_data)
     
     # Display result
     if success:
@@ -216,12 +217,6 @@ def show_delete_account_screen():
     """
     console = Console()
     console.clear()
-    
-    # Get current user
-    current_user = Session.get_current_user()
-    if not current_user:
-        console.print("[red]Error: No active user session[/red]")
-        return True
     
     # Create a warning panel
     console.print(Panel(
@@ -281,7 +276,7 @@ def show_delete_account_screen():
         return True  # Return True to keep session active
 
 
-def show_games_menu():
+def show_games_menu(user):
     """
     Display the games menu with placeholder game options
     
@@ -292,12 +287,6 @@ def show_games_menu():
     
     while True:
         console.clear()
-        
-        # Get current user
-        user = Session.get_current_user()
-        if not user:
-            console.print("[red]Error: No active user session[/red]")
-            return True
         
         # Display game menu header
         console.print(Panel(
@@ -351,7 +340,7 @@ def show_games_menu():
 def show_main_menu():
     """Display main application menu for authenticated users."""
     while True:
-        user = Session.get_current_user()
+        user = Session.get_current_user().to_dict()
         if not user:
             print("Error: No user logged in")
             return
@@ -365,15 +354,15 @@ def show_main_menu():
             "Exit Application"
         ]
 
-        choice = display_menu(options)
+        choice = display_menu(options, user)
 
         if choice == 1:  # Games
             show_games_menu()
         if choice == 2:  # View Profile
-            display_user_profile(user=user)
-            return True
+            display_user_profile(user)
+            # return True
         elif choice == 3:  # Edit Profile
-            show_edit_profile_screen(current_user=user)
+            show_edit_profile_screen(user)
         elif choice == 4:  # Delete Account
             if not show_delete_account_screen():
                 # Account was deleted, end session
