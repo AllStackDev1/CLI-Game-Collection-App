@@ -1,3 +1,4 @@
+from datetime import time
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -10,13 +11,17 @@ from utils.session import Session
 from utils.game_session_tracker import GameSessionTracker
 
 
-def display_menu(options, user = None):
+def display_menu(options, user=None, subtitle="Main Menu", border_style="blue", number_color="cyan", label_color="white"):
     """
     A dynamic menu function that displays menu options and user details at the top if user is in session
 
     Args:
         options (list): List of option strings
         user (User|None): user object
+        subtitle (str): Dynamic subtitle to display
+        border_style (str): Color/style for the panel border
+        number_color (str): Color for the menu option numbers
+        label_color (str): Color for the menu option labels
 
     Returns:
         int: The selected option index (1-based)
@@ -26,29 +31,49 @@ def display_menu(options, user = None):
     # Clear the screen for better presentation
     console.clear()
 
-    # Display user information if available
-    if user:
-        # Create a header with user information
-        console.print(Panel(
-            f"[bold green]Welcome, {user['name']}![/bold green]\n\n"
-            f"Email: {user['email']}",
-            title="[bold]CLI Game Collection[/bold]",
-            subtitle="[bold]Main Menu[/bold]",
-            border_style="blue"
-        ))
-    else:
-        console.print(Panel("Ultimate CLI game collection", title="[bold]Welcome to the Archive[/bold]", subtitle="[bold]Main Menu[/bold]"))
+    # Create panel content and titles based on user status
+    title = "[bold]CLI Game Collection[/bold]"
     
-    # Create menu table with options
-    menu_grid = Table.grid(padding=(0, 0))
-    menu_grid.add_column(style="cyan")
-    menu_grid.add_column(style="white")
+    if user:
+        panel_content = f"[bold green]Welcome, {user['name']}![/bold green]\n\n" \
+                        f"Email: {user['email']}"
+    else:
+        panel_content = "Ultimate CLI game collection"
+        title = "[bold]Welcome to the Archive[/bold]"
+    
+    # Display the header panel with dynamic subtitle
+    console.print(Panel(
+        panel_content,
+        title=title,
+        subtitle=f"[bold]{subtitle}[/bold]",
+        border_style=border_style
+    ))
+    
+    # Create and display the menu options
+    display_menu_options(console, options, number_color, label_color)
+    
+    # Get and validate user choice
+    return get_user_choice(console, len(options))
 
-    # Add menu options
-    choice_strings = []
+
+def display_menu_options(console, options, number_color, label_color):
+    """
+    Display formatted menu options with customizable colors
+    
+    Args:
+        console: Rich console instance
+        options (list): Menu option strings
+        number_color (str): Style for option numbers
+        label_color (str): Style for option labels
+    """
+    # Create menu table with separate columns for numbers and labels
+    menu_grid = Table.grid(padding=(0, 2))
+    menu_grid.add_column(style=number_color, justify="right")
+    menu_grid.add_column(style=label_color)
+
+    # Add menu options with separate number and label
     for i, option in enumerate(options, 1):
-        menu_grid.add_row(f"{i}. {option}")
-        choice_strings.append(str(i))
+        menu_grid.add_row(f"{i}.", f"{option}")
     
     # Display the menu
     console.print(menu_grid)
@@ -56,6 +81,19 @@ def display_menu(options, user = None):
     # Horizontal line to visually separate the menu from input area
     console.print("─" * console.width)
 
+
+def get_user_choice(console, num_options):
+    """
+    Get and validate user menu selection
+    
+    Args:
+        console: Rich console instance
+        num_options (int): Number of menu options
+        
+    Returns:
+        int: Selected menu option (1-based)
+    """
+    choice_strings = [str(i) for i in range(1, num_options + 1)]
     option_completer = WordCompleter(choice_strings, ignore_case=True)
 
     while True:
@@ -63,9 +101,13 @@ def display_menu(options, user = None):
             choice = prompt("\nSelect an option: ", completer=option_completer)
             if choice in choice_strings:
                 return int(choice)
-            console.print(f"[red]Please enter a number between 1 and {len(options)}[/red]")
+            console.print(f"[red]Please enter a number between 1 and {num_options}[/red]")
         except ValueError:
             console.print("[red]Please enter a valid number[/red]")
+        except KeyboardInterrupt:
+            # Re-raise the KeyboardInterrupt to be caught by the calling function
+            console.print("\n[yellow]Menu selection cancelled...[/yellow]")
+            raise
 
 
 def show_auth_menu():
@@ -292,81 +334,56 @@ def show_games_menu(user):
     console = Console()
     session_tracker = GameSessionTracker()
     
-    while True:
+    try:
+        while True:
+            console.clear()
+            
+            # Display game menu header
+            console.print(Panel(
+                "[bold cyan]Game Collection[/bold cyan]",
+                border_style="green",
+                subtitle="Choose a game to play"
+            ))
+            
+            # Dynamically load available games
+            games = discover_games()
+            
+            # Create menu options from available games
+            game_options = [game.get_info()["name"] for game in games]
+            game_options.append("Return to Main Menu")
+            
+            # Display menu and get user choice
+            try:
+                choice = display_menu(
+                    game_options, 
+                    user, 
+                    subtitle="Choose a game to play",
+                    border_style="green"
+                )
+                
+                # Check if the user wants to return to main menu
+                if choice == len(game_options):
+                    return True
+                
+                # Get the selected game
+                if 1 <= choice <= len(games):
+                    selected_game = games[choice - 1]
+                    
+                    # Let user select difficulty and play the game
+                    select_difficulty_and_run_game(selected_game, user, console, session_tracker)
+            
+            except KeyboardInterrupt:
+                # Handle Ctrl+C during menu selection
+                console.print("\n[yellow]Menu navigation cancelled. Returning to previous menu...[/yellow]")
+                time.sleep(1.5)  # Brief pause so user can read the message
+                return True  # Return to main menu
+    
+    except KeyboardInterrupt:
+        # Handle Ctrl+C for the entire function
         console.clear()
-        
-        # Display game menu header
-        console.print(Panel(
-            "[bold cyan]Game Collection[/bold cyan]",
-            border_style="green",
-            subtitle="Choose a game to play"
-        ))
-        
-        # Dynamically load available games
-        games = discover_games()
-        
-        # Create menu options from available games
-        game_options = [game.get_info()["name"] for game in games]
-        game_options.append("Return to Main Menu")
-        
-        # Display menu and get user choice
-        choice = display_menu(game_options, user)
-        
-        # Check if the user wants to return to main menu
-        if choice == len(game_options):
-            return True
-        
-        # Get the selected game
-        if 1 <= choice <= len(games):
-            selected_game = games[choice - 1]
-            
-            # Let user select difficulty and play the game
-            select_difficulty_and_run_game(selected_game, user, console, session_tracker)
-
-
-def show_post_game_options(game, user, console, session_tracker):
-    """
-    Display post-game options to replay or return to menu
-    
-    Args:
-        game: The game instance
-        user: The current user
-        console: Rich console instance
-        session_tracker: Session tracker instance
-        
-    Returns:
-        str: Action to take next ("replay", "replay_new_diff", or None for returning to menu)
-    """
-    console.print("\n[bold cyan]What would you like to do next?[/bold cyan]")
-    
-    options = [
-        f"Play {game.name} again (same difficulty - {game.difficulty})",
-        f"Play {game.name} again (choose new difficulty)",
-        "Return to Games Menu"
-    ]
-    
-    for i, option in enumerate(options, 1):
-        console.print(f"  {i}. {option}")
-    
-    valid_choices = [str(i) for i in range(1, len(options) + 1)]
-    
-    while True:
-        choice = input("\nSelect an option (1-3): ")
-        
-        if choice in valid_choices:
-            choice = int(choice)
-            
-            if choice == 1:  # Replay with same difficulty
-                return "replay"
-                
-            elif choice == 2:  # Replay with new difficulty
-                return "replay_new_diff"
-                
-            elif choice == 3:  # Return to Games Menu
-                return None
-                
-        else:
-            console.print("[red]Invalid choice. Please select 1, 2, or 3.[/red]")
+        console.print("[yellow]Game menu exited. Thanks for playing![/yellow]")
+        time.sleep(1.5)  # Brief pause so user can read the message
+        return True  # Return to main menu
 
 
 def show_main_menu():
@@ -389,8 +406,8 @@ def show_main_menu():
         choice = display_menu(options, user)
 
         if choice == 1:  # Games
-            show_games_menu()
-        if choice == 2:  # View Profile
+            show_games_menu(user)
+        elif choice == 2:  # View Profile
             display_user_profile(user)
             # return True
         elif choice == 3:  # Edit Profile

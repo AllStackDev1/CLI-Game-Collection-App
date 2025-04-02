@@ -1,7 +1,7 @@
 from db.connection import Database
 from db.migration import MigrationManager
 from utils.session import Session
-from menu import show_auth_menu, show_main_menu
+from display_menu import show_auth_menu, show_main_menu
 
 
 def main():

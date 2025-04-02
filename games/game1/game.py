@@ -5,7 +5,7 @@ from rich.panel import Panel
 from rich.text import Text
 from prompt_toolkit.shortcuts import confirm
 
-from base import BaseGame
+from games.base import BaseGame
 
 class NumberGuessingGame(BaseGame):
     """A simple number guessing game where the player tries to 

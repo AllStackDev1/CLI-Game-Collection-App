@@ -64,12 +64,12 @@ class User:
             return
 
         # Validate password strength
-        if not value or len(value) < 8:
-            raise ValidationError("Password must be at least 8 characters long")
-        if not any(char.isdigit() for char in value):
-            raise ValidationError("Password must contain at least one number")
-        if not any(char.isupper() for char in value):
-            raise ValidationError("Password must contain at least one uppercase letter")
+        if not value or len(value) < 6:
+            raise ValidationError("Password must be at least 6 characters long")
+        # if not any(char.isdigit() for char in value):
+        #     raise ValidationError("Password must contain at least one number")
+        # if not any(char.isupper() for char in value):
+        #     raise ValidationError("Password must contain at least one uppercase letter")
 
         # Hash the password
         self._password = PasswordHandler.hash_password(value)

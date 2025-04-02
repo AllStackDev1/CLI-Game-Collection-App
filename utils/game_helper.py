@@ -2,7 +2,6 @@ import os
 import importlib
 from rich.panel import Panel
 
-from menu import show_post_game_options
 
 def discover_games():
     """
@@ -172,6 +171,51 @@ def select_difficulty_and_run_game(game, user, console, session_tracker):
         else:
             # Return to games menu
             return "quit"
+
+
+def show_post_game_options(game, user, console, session_tracker):
+    """
+    Display post-game options to replay or return to menu
+    
+    Args:
+        game: The game instance
+        user: The current user
+        console: Rich console instance
+        session_tracker: Session tracker instance
+        
+    Returns:
+        str: Action to take next ("replay", "replay_new_diff", or None for returning to menu)
+    """
+    console.print("\n[bold cyan]What would you like to do next?[/bold cyan]")
+    
+    options = [
+        f"Play {game.name} again (same difficulty - {game.difficulty})",
+        f"Play {game.name} again (choose new difficulty)",
+        "Return to Games Menu"
+    ]
+    
+    for i, option in enumerate(options, 1):
+        console.print(f"  {i}. {option}")
+    
+    valid_choices = [str(i) for i in range(1, len(options) + 1)]
+    
+    while True:
+        choice = input("\nSelect an option (1-3): ")
+        
+        if choice in valid_choices:
+            choice = int(choice)
+            
+            if choice == 1:  # Replay with same difficulty
+                return "replay"
+                
+            elif choice == 2:  # Replay with new difficulty
+                return "replay_new_diff"
+                
+            elif choice == 3:  # Return to Games Menu
+                return None
+                
+        else:
+            console.print("[red]Invalid choice. Please select 1, 2, or 3.[/red]")
 
 
 def show_high_scores(game_id, console):
