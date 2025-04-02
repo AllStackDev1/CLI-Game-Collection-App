@@ -5,8 +5,8 @@ from prompt_toolkit import prompt
 
 from models.user import User, ValidationError
 from repositories.user import UserRepository
-from auth.password import PasswordHandler
-from auth.session import Session
+from utils.password import PasswordHandler
+from utils.session import Session
 
 
 def register_user():

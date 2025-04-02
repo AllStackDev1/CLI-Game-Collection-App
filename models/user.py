@@ -1,7 +1,6 @@
 import re
-from dataclasses import dataclass
 from datetime import datetime
-from auth.password import PasswordHandler
+from utils.password import PasswordHandler
 
 
 class ValidationError(Exception):

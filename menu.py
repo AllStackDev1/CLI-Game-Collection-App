@@ -1,10 +1,13 @@
-from auth.session import Session
-from controllers import user as user_controller
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from prompt_toolkit import prompt
 from prompt_toolkit.contrib.completers import WordCompleter
+
+from services import user as user_service
+from utils.game_helper import discover_games, select_difficulty_and_run_game
+from utils.session import Session
+from utils.game_session_tracker import GameSessionTracker
 
 
 def display_menu(options, user = None):
@@ -72,12 +75,12 @@ def show_auth_menu():
 
     if choice == 1:  # Login
         while True:
-            user = user_controller.login_user()
+            user = user_service.login_user()
             if user is False:
                 continue
             return user
     elif choice == 2:  # Register
-        return user_controller.register_user()
+        return user_service.register_user()
     else:  # Exit
         return None
 
@@ -192,8 +195,8 @@ def show_edit_profile_screen(user):
         update_data['password'] = new_password
         update_data['confirm_password'] = confirm_password
     
-    # Call controller to update user
-    success, message = user_controller.update_user_details(user['id'], update_data)
+    # Call service to update user
+    success, message = user_service.update_user_details(user['id'], update_data)
     
     # Display result
     if success:
@@ -262,7 +265,7 @@ def show_delete_account_screen():
     # Proceed with account deletion
     console.print("\n[yellow]Deleting your account...[/yellow]")
     
-    success, message = user_controller.delete_current_user_account(password)
+    success, message = user_service.delete_current_user_account(password)
     
     if success:
         console.print(f"[green]{message}[/green]")
@@ -278,12 +281,16 @@ def show_delete_account_screen():
 
 def show_games_menu(user):
     """
-    Display the games menu with placeholder game options
+    Display the games menu with dynamically loaded game options
+    
+    Args:
+        user: The current user object
     
     Returns:
         bool: True to continue the session
     """
     console = Console()
+    session_tracker = GameSessionTracker()
     
     while True:
         console.clear()
@@ -295,46 +302,71 @@ def show_games_menu(user):
             subtitle="Choose a game to play"
         ))
         
-        # Define game options
-        game_options = [
-            "Game 1 - Placeholder",
-            "Game 2 - Placeholder",
-            "Game 3 - Placeholder",
-            "Return to Main Menu"
-        ]
+        # Dynamically load available games
+        games = discover_games()
+        
+        # Create menu options from available games
+        game_options = [game.get_info()["name"] for game in games]
+        game_options.append("Return to Main Menu")
         
         # Display menu and get user choice
         choice = display_menu(game_options, user)
         
-        if choice == 1:  # Game 1
-            console.clear()
-            console.print(Panel(
-                "[bold yellow]Game 1[/bold yellow]\n\nThis game is not yet implemented.",
-                border_style="yellow"
-            ))
-            console.print("\nPress Enter to return to the Games Menu...")
-            input()
-            
-        elif choice == 2:  # Game 2
-            console.clear()
-            console.print(Panel(
-                "[bold yellow]Game 2[/bold yellow]\n\nThis game is not yet implemented.",
-                border_style="yellow"
-            ))
-            console.print("\nPress Enter to return to the Games Menu...")
-            input()
-            
-        elif choice == 3:  # Game 3
-            console.clear()
-            console.print(Panel(
-                "[bold yellow]Game 3[/bold yellow]\n\nThis game is not yet implemented.",
-                border_style="yellow"
-            ))
-            console.print("\nPress Enter to return to the Games Menu...")
-            input()
-            
-        elif choice == 4:  # Return to Main Menu
+        # Check if the user wants to return to main menu
+        if choice == len(game_options):
             return True
+        
+        # Get the selected game
+        if 1 <= choice <= len(games):
+            selected_game = games[choice - 1]
+            
+            # Let user select difficulty and play the game
+            select_difficulty_and_run_game(selected_game, user, console, session_tracker)
+
+
+def show_post_game_options(game, user, console, session_tracker):
+    """
+    Display post-game options to replay or return to menu
+    
+    Args:
+        game: The game instance
+        user: The current user
+        console: Rich console instance
+        session_tracker: Session tracker instance
+        
+    Returns:
+        str: Action to take next ("replay", "replay_new_diff", or None for returning to menu)
+    """
+    console.print("\n[bold cyan]What would you like to do next?[/bold cyan]")
+    
+    options = [
+        f"Play {game.name} again (same difficulty - {game.difficulty})",
+        f"Play {game.name} again (choose new difficulty)",
+        "Return to Games Menu"
+    ]
+    
+    for i, option in enumerate(options, 1):
+        console.print(f"  {i}. {option}")
+    
+    valid_choices = [str(i) for i in range(1, len(options) + 1)]
+    
+    while True:
+        choice = input("\nSelect an option (1-3): ")
+        
+        if choice in valid_choices:
+            choice = int(choice)
+            
+            if choice == 1:  # Replay with same difficulty
+                return "replay"
+                
+            elif choice == 2:  # Replay with new difficulty
+                return "replay_new_diff"
+                
+            elif choice == 3:  # Return to Games Menu
+                return None
+                
+        else:
+            console.print("[red]Invalid choice. Please select 1, 2, or 3.[/red]")
 
 
 def show_main_menu():
@@ -368,9 +400,9 @@ def show_main_menu():
                 # Account was deleted, end session
                 return False
         elif choice == 5:  # Logout
-            user_controller.logout_user()
+            user_service.logout_user()
             return False
         elif choice == 6:  # Exit
-            user_controller.logout_user()
+            user_service.logout_user()
             print("\nExiting application. Goodbye!")
             exit(0)

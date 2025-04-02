@@ -19,7 +19,7 @@ A terminal-based game collection application with user management, profile contr
 
 - 🧱 **Architecture**
   - Flat, functional menu routing
-  - Modular controllers, repositories, and services
+  - Modular services, repositories, and services
   - `Session` state management
   - Clean separation between UI, logic, and data layers
 
@@ -40,14 +40,38 @@ A terminal-based game collection application with user management, profile contr
 ```
 project/
 │
-├── controllers/           # User and game flow controllers
-├── games/                 # Individual game implementations (OOP-based)
-├── models/                # Data models (if needed)
-├── repositories/          # User repository with soft delete support
-├── services/              # Authentication, stats, etc.
-├── utils/                 # Session, validators, helpers
-├── main.py                # Entry point
-└── README.md
+├── app/                   # Application UI and menu flow logic
+│  └── menu.py             # Handles main and sub-menu display and routing
+│
+├── db/                   # Database-related components
+│  ├── data/              # SQLite database files and backups
+│  ├── migrations/        # SQL or Python migration scripts
+│  ├── connection.py      # Centralized database connection logic
+│  └── migration.py       # Migration runner and setup coordinator
+│
+├── games/                # Game module (OOP-based architecture)
+│  └── base.py            # BaseGame class defining shared game interface
+│
+├── models/               # Data model representations
+│  ├── user.py            # User model schema and helpers
+│  └── game_session.py    # Game session model for tracking play history
+│
+├── repositories/         # Data access layer
+│  ├── user.py            # User repository (CRUD + lookup)
+│  └── game_session.py    # Game session repository (insert, update, fetch)
+│
+├── services/             # Business logic layer
+│  ├── user.py            # Auth, profile update, and user flow handling
+│  └── game_session.py    # Game tracking and session service functions
+│
+├── utils/                # Utility modules for cross-cutting concerns
+│  ├── password.py        # Password hashing and verification
+│  ├── session.py         # Logged-in session state management
+│  └── validation.py      # Input validation and sanitization utilities
+│
+├── main.py                # Application entry point
+└── README.md              # Project documentation and setup guide
+
 ```
 
 ---
